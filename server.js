@@ -58,17 +58,26 @@ app.post("/chat", async (req, res) => {
     let documentText = "";
 
     if (wordFile) {
-      const wordBuffer = Buffer.from(wordFile, "base64");
-      const wordResult = await mammoth.extractRawText({ buffer: wordBuffer });
-      documentText += \n\nWord Document (${wordFileName || "document.docx"}):\n${wordResult.value};
-    }
+  const wordBuffer = Buffer.from(wordFile, "base64");
+  const wordResult = await mammoth.extractRawText({ buffer: wordBuffer });
+
+  documentText += `
+
+Word Document (${wordFileName || "document.docx"}):
+${wordResult.value}
+`;
+}
 
     if (pdfFile) {
-      const pdfBuffer = Buffer.from(pdfFile, "base64");
-      const pdfResult = await pdfParse(pdfBuffer);
-      documentText += \n\nPDF Document (${pdfFileName || "document.pdf"}):\n${pdfResult.text};
-    }
+  const pdfBuffer = Buffer.from(pdfFile, "base64");
+  const pdfResult = await pdfParse(pdfBuffer);
 
+  documentText += `
+
+  PDF Document (${pdfFileName || "document.pdf"}):
+${pdfResult.text}
+`;
+}
     const userQuestion =
       message && message.trim() !== ""
         ? message
