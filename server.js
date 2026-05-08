@@ -4,6 +4,8 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const OpenAI = require("openai");
+const mammoth = require("mammoth");
+const pdfParse = require("pdf-parse");
 
 const app = express();
 
@@ -14,7 +16,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Simple in-memory chat storage
 const chatMemory = {};
 
 app.get("/", (req, res) => {
@@ -32,6 +33,10 @@ app.post("/chat", async (req, res) => {
       mode,
       subject,
       userId,
+      wordFile,
+      wordFileName,
+      pdfFile,
+      pdfFileName,
     } = req.body;
 
     const currentUser = userId || "default_user";
@@ -45,48 +50,50 @@ app.post("/chat", async (req, res) => {
 
     const userMemory = chatMemory[currentUser];
 
-    if (image) {
-      userMemory.images.push(image);
-    }
+    if (image) userMemory.images.push(image);
+    if (Array.isArray(images)) userMemory.images.push(...images);
 
-    if (Array.isArray(images)) {
-      userMemory.images.push(...images);
-    }
-
-    // Keep last 5 images only
     userMemory.images = userMemory.images.slice(-5);
+
+    let documentText = "";
+
+    if (wordFile) {
+      const wordBuffer = Buffer.from(wordFile, "base64");
+      const wordResult = await mammoth.extractRawText({ buffer: wordBuffer });
+      documentText += \n\nWord Document (${wordFileName || "document.docx"}):\n${wordResult.value};
+    }
+
+    if (pdfFile) {
+      const pdfBuffer = Buffer.from(pdfFile, "base64");
+      const pdfResult = await pdfParse(pdfBuffer);
+      documentText += \n\nPDF Document (${pdfFileName || "document.pdf"}):\n${pdfResult.text};
+    }
 
     const userQuestion =
       message && message.trim() !== ""
         ? message
-        : "Study the uploaded image or images carefully and answer.";
+        : "Study the uploaded file or image carefully and answer.";
 
     userMemory.messages.push({
       role: "user",
       text: userQuestion,
     });
 
-    // Keep last 10 messages only
     userMemory.messages = userMemory.messages.slice(-10);
 
     const currentMode = mode || "teacher";
     const currentSubject = subject || "general";
 
-    let modeInstruction = "";
-
-    if (currentMode === "student") {
-      modeInstruction =
-        "You are in Student Mode. Explain simply, step by step, using easy language.";
-    } else {
-      modeInstruction =
-        "You are in Teacher Mode. Give a professional teaching explanation suitable for classroom use.";
-    }
+    const modeInstruction =
+      currentMode === "student"
+        ? "You are in Student Mode. Explain simply, step by step, using easy language."
+        : "You are in Teacher Mode. Give a professional teaching explanation suitable for classroom use.";
 
     let subjectInstruction = "";
 
     if (currentSubject === "english") {
       subjectInstruction =
-        "Focus on English grammar, spelling, vocabulary, sentence correction, reading, and writing.";
+        "Focus on English grammar, vocabulary, spelling, reading, writing, and sentence correction.";
     } else if (currentSubject === "math") {
       subjectInstruction =
         "Focus on solving math problems clearly step by step.";
@@ -97,12 +104,11 @@ app.post("/chat", async (req, res) => {
       subjectInstruction =
         "Check homework carefully. Correct wrong answers and explain the correct answer.";
     } else {
-      subjectInstruction =
-        "Answer generally and helpfully.";
+      subjectInstruction = "Answer generally and helpfully.";
     }
 
     const previousMessages = userMemory.messages
-      .map((m, index) => `${index + 1}. ${m.role}: ${m.text}`)
+      .map((m, index) => ${index + 1}. ${m.role}: ${m.text})
       .join("\n");
 
     const content = [
@@ -115,10 +121,13 @@ ${modeInstruction}
 
 ${subjectInstruction}
 
-You can remember the recent chat and recent uploaded images during this session.
+You can remember recent chat, uploaded images, PDF files, and Word documents during this session.
 
 Recent chat history:
 ${previousMessages}
+
+Uploaded document text:
+${documentText || "No document uploaded."}
 
 Use this format only:
 
@@ -137,7 +146,7 @@ ${userQuestion}
     for (const img of userMemory.images) {
       content.push({
         type: "input_image",
-        image_url: `data:image/jpeg;base64,${img}`,
+        image_url: data:image/jpeg;base64,${img},
       });
     }
 
@@ -149,7 +158,7 @@ ${userQuestion}
           content,
         },
       ],
-      max_output_tokens: 700,
+      max_output_tokens: 900,
     });
 
     const text = response.output_text || "No response received.";
