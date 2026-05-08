@@ -124,7 +124,7 @@ ${pdfResult.text}
     }
 
     const previousMessages = userMemory.messages
-      .map((m, index) => ${index + 1}. ${m.role}: ${m.text})
+     .map((m, index) => `${index + 1}. ${m.role}: ${m.text}`)
       .join("\n");
 
     const content = [
@@ -162,7 +162,7 @@ ${userQuestion}
     for (const img of userMemory.images) {
       content.push({
         type: "input_image",
-        image_url: data:image/jpeg;base64,${img},
+        image_url: `data:image/jpeg;base64,${img}`,
       });
     }
 
@@ -222,5 +222,5 @@ app.post("/clear-memory", (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(Teacher Collins AI server running on port ${PORT});
+  console.log(`Teacher Collins AI server running on port ${PORT}`);
 });
