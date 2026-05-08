@@ -50,34 +50,42 @@ app.post("/chat", async (req, res) => {
 
     const userMemory = chatMemory[currentUser];
 
-    if (image) userMemory.images.push(image);
-    if (Array.isArray(images)) userMemory.images.push(...images);
+    if (image) {
+      userMemory.images.push(image);
+    }
+
+    if (Array.isArray(images)) {
+      userMemory.images.push(...images);
+    }
 
     userMemory.images = userMemory.images.slice(-5);
 
     let documentText = "";
 
     if (wordFile) {
-  const wordBuffer = Buffer.from(wordFile, "base64");
-  const wordResult = await mammoth.extractRawText({ buffer: wordBuffer });
+      const wordBuffer = Buffer.from(wordFile, "base64");
+      const wordResult = await mammoth.extractRawText({
+        buffer: wordBuffer,
+      });
 
-  documentText += `
+      documentText += `
 
 Word Document (${wordFileName || "document.docx"}):
 ${wordResult.value}
 `;
-}
+    }
 
     if (pdfFile) {
-  const pdfBuffer = Buffer.from(pdfFile, "base64");
-  const pdfResult = await pdfParse(pdfBuffer);
+      const pdfBuffer = Buffer.from(pdfFile, "base64");
+      const pdfResult = await pdfParse(pdfBuffer);
 
-  documentText += `
+      documentText += `
 
-  PDF Document (${pdfFileName || "document.pdf"}):
+PDF Document (${pdfFileName || "document.pdf"}):
 ${pdfResult.text}
 `;
-}
+    }
+
     const userQuestion =
       message && message.trim() !== ""
         ? message
@@ -104,8 +112,7 @@ ${pdfResult.text}
       subjectInstruction =
         "Focus on English grammar, vocabulary, spelling, reading, writing, and sentence correction.";
     } else if (currentSubject === "math") {
-      subjectInstruction =
-        "Focus on solving math problems clearly step by step.";
+      subjectInstruction = "Focus on solving math problems clearly step by step.";
     } else if (currentSubject === "science") {
       subjectInstruction =
         "Focus on science explanations using simple classroom examples.";
@@ -164,7 +171,7 @@ ${userQuestion}
       input: [
         {
           role: "user",
-          content,
+          content: content,
         },
       ],
       max_output_tokens: 900,
@@ -174,7 +181,7 @@ ${userQuestion}
 
     userMemory.messages.push({
       role: "assistant",
-      text,
+      text: text,
     });
 
     userMemory.messages = userMemory.messages.slice(-10);
@@ -212,6 +219,8 @@ app.post("/clear-memory", (req, res) => {
   });
 });
 
-app.listen(3000, "0.0.0.0", () => {
-  console.log("Teacher Collins AI server running on port 3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(Teacher Collins AI server running on port ${PORT});
 });
